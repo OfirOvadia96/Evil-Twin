@@ -1,6 +1,7 @@
 from scapy.all import * 
 import os
 from threading import Thread
+import time
 
 
 
@@ -46,17 +47,25 @@ def packetUsers(packet):
 def change_channel(iface):
     ch = 1
     #---------------Need to set timer in this loop ---------------
+    start = time.time()
+
     while True:
         os.system("sudo iwconfig " + iface +  " channel " + str(ch))
         # switch channel from 1 to 14 each 5s
         ch = ch % 14 + 1
-        time.sleep(5)
+        end = time.time()
+
+        if end-start > 75 : 
+            break #end loop
+
+        time.sleep(3)
 
 
 def main():
     os.system("iwconfig") #to see our interfaces we have
     global interFace
     interFace = input("please insert iface: ")
+    os.system("clear")
     changeToMonitorMode(interFace)
 
     #Scanning access point Wifi
@@ -72,9 +81,10 @@ def main():
         sys.exit() # end script
 
     # Scanning clients
+    # print("scanning clients...")
     #sniff(iface=interFace, prn = packetUsers , timeout=80)
 
-    changeToManagedMode(interFace)
+    changeToManagedMode(interFace) # change back to default mode
 
 
 
