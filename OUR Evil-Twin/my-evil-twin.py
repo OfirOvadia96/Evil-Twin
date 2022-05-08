@@ -6,13 +6,14 @@ import time
 # global variables 
 
 interface = "" # indentfied Network Card
+AP_target = []
 
 # APs
 AP_dict = {} #founded AP
 index_AP_target = 0
 
 #clients
-clients_dict = {}
+station_dict = {}
 index_client_target = 0
 
 
@@ -58,39 +59,57 @@ def packetHandler(packet):
             
             print("index: ", index_AP_target,"   addr2(MAC): ", packet.addr2, "   info(SSID): " ,packet.info, "   channel: ", channel)
             index_AP_target = index_AP_target + 1
+
+            # print("index: ", index_AP_target, "   info(SSID): " ,packet.info, "   addr1: ", packet.addr1, "   addr2(MAC): ", packet.addr2, "   addr3: ", packet.addr3)
         
 
 
 #if the picked Wifi mac (router) matches
 
 def packetUsers(packet):
+    global AP_target
+    BSSID_target = AP_target[0]
     global AP_dict
-    global clients_dict
+    global station_dict
     global index_client_target
     flag = False
 
-    for i in AP_dict:
-            key_list = AP_dict.get(i)
-            if packet.addr2 in key_list:
-                flag = True
-                break
+    #     global client_list
+#    if ((pkt.addr2==target_mac or pkt.addr3 == target_mac) and pkt.addr1 != "ff:ff:ff:ff:ff:ff"):
+#       if pkt.addr1 not in client_list:
+#         if pkt.addr2 != pkt.addr1 and pkt.addr1 != pkt.addr3:
+#             client_list.append(pkt.addr1)
 
-    for i in clients_dict:
-            key_list = clients_dict.get(i)
-            if packet.addr2 in key_list:
-                flag = True
-                break
+    if packet.addr1 != "ff:ff:ff:ff:ff:ff" and (packet.addr2 == BSSID_target or packet.addr3 == BSSID_target):
+                if packet.addr2 != packet.addr1 and packet.addr1 != packet.addr3:
+                    for i in station_dict:
+                        key_list = station_dict.get(i)
+                        if packet.addr1 in key_list:
+                            flag = True
+                            break
+                    if flag == False:
+                        clients_list = []
+                        clients_list.append(packet.addr1) 
+                        station_dict[index_client_target] = clients_list
+                            
+                        print("index: ", index_client_target, "    addr1(src): ", packet.addr1, "   addr2(dest): ", packet.addr2,  "    addr3(?): ", packet.addr3)
+                        index_client_target = index_client_target + 1
 
-    if flag == False:
-        clients_list = []
-        clients_list.append(packet.addr2) # BSSID
-        clients_dict[index_client_target] = clients_list
+    
+    # for i in AP_dict:
+    #         key_list = AP_dict.get(i)
+    #         if packet.addr2 in key_list:
+    #             flag = True
+    #             break
+    
+    #     if flag == False:
+    #         for i in station_dict:
+    #                 key_list = station_dict.get(i)
+    #                 if packet.addr2 in key_list:
+    #                     flag = True
+    #                     break
             
-        print("index: ", index_client_target,"   addr2(MAC): ", packet.addr2)
-        index_client_target = index_client_target + 1
-
-            
-
+    #         if flag == False:
 
 def change_channel(iface):
     ch = 1
@@ -122,6 +141,7 @@ def main():
     os.system("iwconfig") #to see our interfaces we have
     global interface
     global AP_dict
+    global AP_target
     interface = input("please insert iface: ")
     os.system("clear")
     changeToMonitorMode(interface)
@@ -157,6 +177,9 @@ def main():
 
 
     changeChannelToAP(convertedChosen)
+
+    # saves the details of the chosen AP
+    AP_target = AP_dict.get(convertedChosen)
 
     # Scanning clients
     print("scanning clients...")
