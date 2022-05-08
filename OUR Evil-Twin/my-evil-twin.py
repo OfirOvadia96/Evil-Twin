@@ -142,6 +142,7 @@ def main():
     global interface
     global AP_dict
     global AP_target
+    global station_dict
     interface = input("please insert iface: ")
     os.system("clear")
     changeToMonitorMode(interface)
@@ -190,6 +191,11 @@ def main():
         sys.exit() # end script
 
     changeToManagedMode(interface) # change back to default mode
+
+    
+    #Attack
+    
+    #os.system("sudo aireplay-ng --deauth 2000 -a "bssid" -c "station" ")
 
 
 if __name__ == "__main__":
