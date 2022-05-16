@@ -1,7 +1,0 @@
-interface=55
-driver=nl80211 
-ssid=43
-hw_mode=g 
-channel=7 
-macaddr_acl=0 
-ignore_broadcast_ssid=0
