@@ -1,0 +1,4 @@
+Run:
+
+1. sudo rmmod r8188eu.ko
+2. sudo modprobe 8188eu
